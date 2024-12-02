@@ -150,7 +150,6 @@ app.delete('/api/gastos/recurrente', async (req, res) => {
     try {
         const { concepto, fecha } = req.body;
         
-        // Verificar que los parámetros necesarios estén presentes
         if (!concepto || !fecha) {
             res.status(400).json({ error: 'Faltan parámetros requeridos' });
             return;

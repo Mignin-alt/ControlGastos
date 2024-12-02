@@ -96,20 +96,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const fechaInput = document.getElementById('fecha');
     const fechaContainer = document.getElementById('fechaContainer');
 
-    // Inicializar el estado
     añoSelect.disabled = true;
     añoSelect.required = false;
 
     esRecurrenteCheckbox.addEventListener('change', () => {
         if (esRecurrenteCheckbox.checked) {
-            // Gasto recurrente
             añoContainer.style.display = 'block';
             añoSelect.disabled = false;
             añoSelect.required = true;
             fechaInput.disabled = true;
             fechaInput.required = false;
 
-            // Llenar el select de año si está vacío
             if (añoSelect.options.length === 0) {
                 const currentYear = new Date().getFullYear();
                 for (let i = currentYear; i <= currentYear + 5; i++) {
@@ -120,7 +117,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else {
-            // Gasto no recurrente
             añoContainer.style.display = 'none';
             añoSelect.disabled = true;
             añoSelect.required = false;
@@ -188,7 +184,6 @@ async function cargarGastos() {
         const gastos = await response.json();
         console.log('Gastos cargados:', gastos);
 
-        // Separar y mostrar los gastos
         mostrarGastosRecurrentes(gastos);
         mostrarGastosNoRecurrentes(gastos.filter(g => !g.es_recurrente));
     } catch (error) {
@@ -225,7 +220,6 @@ function mostrarGastosDetallados(gastos) {
     gastosRecurrentes.innerHTML = '';
     gastosNoRecurrentes.innerHTML = '';
 
-    // Agrupar gastos recurrentes por concepto y año
     const gastosRecurrentesAgrupados = {};
     gastos.filter(g => g.es_recurrente).forEach(gasto => {
         const año = new Date(gasto.fecha).getFullYear();
@@ -236,7 +230,6 @@ function mostrarGastosDetallados(gastos) {
         gastosRecurrentesAgrupados[key].push(gasto);
     });
 
-    // Mostrar gastos recurrentes agrupados
     Object.entries(gastosRecurrentesAgrupados).forEach(([key, grupo]) => {
         const primerGasto = grupo[0];
         const gastoHTML = `
@@ -269,7 +262,6 @@ function mostrarGastosDetallados(gastos) {
         gastosRecurrentes.innerHTML += gastoHTML;
     });
 
-    // Mostrar gastos no recurrentes
     gastos.filter(g => !g.es_recurrente).forEach(gasto => {
         const gastoHTML = `
             <div class="gasto-item">
@@ -287,7 +279,6 @@ function mostrarGastosDetallados(gastos) {
     });
 }
 
-// Función para mostrar/ocultar detalles de gasto recurrente
 function toggleGastoRecurrente(key) {
     const detalles = document.getElementById(`detalles-${key}`);
     const header = detalles.previousElementSibling;
@@ -344,8 +335,7 @@ async function editarGasto(id) {
         const gasto = await response.json();
         const form = document.getElementById('gastoForm');
         
-        // Nueva forma de manejar la fecha para evitar problemas de zona horaria
-        const fechaOriginal = gasto.fecha.split('T')[0]; // Tomamos solo la parte de la fecha YYYY-MM-DD
+        const fechaOriginal = gasto.fecha.split('T')[0];
         
         form.dataset.modo = 'editar';
         form.dataset.gastoId = id;
@@ -411,7 +401,6 @@ function toggleFechaInput() {
         fechaInput.required = false;
         añoInput.required = true;
         
-        // Llenar el selector de años
         const añoActual = new Date().getFullYear();
         añoInput.innerHTML = '';
         for (let i = añoActual - 2; i <= añoActual + 2; i++) {
@@ -472,7 +461,6 @@ function mostrarGastosAgrupados(gastos) {
     const añoFiltro = document.getElementById('filtroAño').value;
     const mesFiltro = document.getElementById('filtroMes').value;
 
-    // Filtrar gastos según los filtros seleccionados
     let gastosFiltrados = gastos;
     if (añoFiltro) {
         gastosFiltrados = gastosFiltrados.filter(g => g.año == añoFiltro);
@@ -481,7 +469,6 @@ function mostrarGastosAgrupados(gastos) {
         gastosFiltrados = gastosFiltrados.filter(g => g.mes == mesFiltro);
     }
 
-    // Agrupar por año, mes y tipo de gasto
     const gastosAgrupados = {};
     gastosFiltrados.forEach(gasto => {
         const año = gasto.año;
@@ -504,7 +491,6 @@ function mostrarGastosAgrupados(gastos) {
         }
     });
 
-    // Generar HTML
     let html = '';
     const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
                    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -597,14 +583,12 @@ function logout() {
 }
 
 function calcularCantidadMasComun(gastos) {
-    // Convertir todas las cantidades a números y agruparlas
     const cantidades = {};
     gastos.forEach(gasto => {
         const cantidad = parseFloat(gasto.cantidad) || 0;
         cantidades[cantidad] = (cantidades[cantidad] || 0) + 1;
     });
 
-    // Encontrar la cantidad que más se repite
     let cantidadMasComun = 0;
     let maxRepeticiones = 0;
 
@@ -686,7 +670,6 @@ async function borrarGrupoRecurrente(concepto, fecha) {
             throw new Error('Error al borrar el grupo de gastos');
         }
 
-        // Recargar los gastos después de borrar
         await cargarGastos();
     } catch (error) {
         console.error('Error:', error);
@@ -698,9 +681,8 @@ function mostrarGastosRecurrentes(gastos) {
     const container = document.getElementById('gastosRecurrentes');
     container.innerHTML = '';
     
-    console.log('Mostrando gastos recurrentes:', gastos); // Para debug
+    console.log('Mostrando gastos recurrentes:', gastos);
     
-    // Agrupar gastos recurrentes por concepto y año
     const gastosAgrupados = {};
     gastos.filter(g => g.es_recurrente).forEach(gasto => {
         const fecha = new Date(gasto.fecha);
@@ -734,7 +716,7 @@ function mostrarGastosRecurrentes(gastos) {
                 </div>
                 <div class="gasto-recurrente-detalles" id="detalles-${key}" style="display: none;">
                     ${grupo.gastos.map(gasto => {
-                        const cantidad = parseFloat(gasto.cantidad) || 0; // Asegurarse de que sea un número
+                        const cantidad = parseFloat(gasto.cantidad) || 0;
                         return `
                             <div class="gasto-mensual">
                                 <div class="gasto-mensual-info">
