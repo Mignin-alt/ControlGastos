@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro - Gestor de Gastos</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">Gestor de Gastos</div>
+        <div class="nav-links">
+            <a href="inicio.html">Inicio</a>
+            <a href="/gastos">Gastos</a>
+            <a href="login.html">Iniciar Sesión</a>
+            <a href="registro.html" class="active">Registrarse</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="auth-form">
+            <h2>Registro</h2>
+            <form id="registerForm" onsubmit="registrar(event)">
+                <div class="form-group">
+                    <label for="registerNombre">Nombre:</label>
+                    <input type="text" id="registerNombre" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">Email:</label>
+                    <input type="email" id="registerEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Contraseña:</label>
+                    <input type="password" id="registerPassword" required>
+                </div>
+                <button type="submit">Registrarse</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/main.js"></script>
+</body>
+</html> 
