@@ -89,6 +89,45 @@ document.addEventListener('DOMContentLoaded', () => {
             logout();
         });
     }
+
+    const esRecurrenteCheckbox = document.getElementById('esRecurrente');
+    const añoSelect = document.getElementById('año');
+    const añoContainer = document.getElementById('añoContainer');
+    const fechaInput = document.getElementById('fecha');
+    const fechaContainer = document.getElementById('fechaContainer');
+
+    // Inicializar el estado
+    añoSelect.disabled = true;
+    añoSelect.required = false;
+
+    esRecurrenteCheckbox.addEventListener('change', () => {
+        if (esRecurrenteCheckbox.checked) {
+            // Gasto recurrente
+            añoContainer.style.display = 'block';
+            añoSelect.disabled = false;
+            añoSelect.required = true;
+            fechaInput.disabled = true;
+            fechaInput.required = false;
+
+            // Llenar el select de año si está vacío
+            if (añoSelect.options.length === 0) {
+                const currentYear = new Date().getFullYear();
+                for (let i = currentYear; i <= currentYear + 5; i++) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = i;
+                    añoSelect.appendChild(option);
+                }
+            }
+        } else {
+            // Gasto no recurrente
+            añoContainer.style.display = 'none';
+            añoSelect.disabled = true;
+            añoSelect.required = false;
+            fechaInput.disabled = false;
+            fechaInput.required = true;
+        }
+    });
 });
 
 async function login() {
@@ -150,11 +189,8 @@ async function cargarGastos() {
         console.log('Gastos cargados:', gastos);
 
         // Separar y mostrar los gastos
-        const gastosRecurrentes = gastos.filter(g => g.es_recurrente);
-        const gastosNoRecurrentes = gastos.filter(g => !g.es_recurrente);
-
-        mostrarGastosRecurrentes(gastosRecurrentes);
-        mostrarGastosNoRecurrentes(gastosNoRecurrentes);
+        mostrarGastosRecurrentes(gastos);
+        mostrarGastosNoRecurrentes(gastos.filter(g => !g.es_recurrente));
     } catch (error) {
         console.error('Error:', error);
         alert('Error al cargar los gastos');
@@ -293,51 +329,51 @@ async function registrar() {
     }
 }
 
-function editarGasto(id) {
-    const form = document.getElementById('gastoForm');
-    form.dataset.modo = 'editar';
-    form.dataset.gastoId = id;
-
-    fetch(`/api/gastos/${id}`, {
-        headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+async function editarGasto(id) {
+    try {
+        const response = await fetch(`/api/gastos/${id}`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Error al obtener el gasto');
         }
-    })
-    .then(response => response.json())
-    .then(gasto => {
+        
+        const gasto = await response.json();
+        const form = document.getElementById('gastoForm');
+        
+        // Nueva forma de manejar la fecha para evitar problemas de zona horaria
+        const fechaOriginal = gasto.fecha.split('T')[0]; // Tomamos solo la parte de la fecha YYYY-MM-DD
+        
+        form.dataset.modo = 'editar';
+        form.dataset.gastoId = id;
         document.getElementById('concepto').value = gasto.concepto;
         document.getElementById('cantidad').value = gasto.cantidad;
         document.getElementById('categoria').value = gasto.categoria;
+        document.getElementById('fecha').value = fechaOriginal;
+        document.getElementById('esRecurrente').checked = gasto.es_recurrente;
         
-        const fechaInput = document.getElementById('fecha');
-        const esRecurrenteInput = document.getElementById('esRecurrente');
-        const añoContainer = document.getElementById('añoContainer');
-        const fechaContainer = document.getElementById('fechaContainer');
-        
-        // Siempre mostramos la fecha al editar
-        fechaContainer.style.display = 'block';
-        añoContainer.style.display = 'none';
-        fechaInput.value = new Date(gasto.fecha).toISOString().split('T')[0];
-        fechaInput.required = true;
-        
-        // Si es recurrente, deshabilitamos el checkbox
         if (gasto.es_recurrente) {
-            esRecurrenteInput.checked = true;
-            esRecurrenteInput.disabled = true;
-            // Asegurarnos de que el campo año no sea required cuando editamos
-            const añoInput = document.getElementById('año');
-            if (añoInput) {
-                añoInput.required = false;
-            }
+            const fecha = new Date(fechaOriginal);
+            document.getElementById('año').value = fecha.getFullYear();
+            document.getElementById('añoContainer').style.display = 'block';
+            document.getElementById('año').disabled = false;
+            document.getElementById('año').required = true;
+            document.getElementById('fecha').disabled = true;
+            document.getElementById('fecha').required = false;
         } else {
-            esRecurrenteInput.checked = false;
-            esRecurrenteInput.disabled = false;
+            document.getElementById('añoContainer').style.display = 'none';
+            document.getElementById('año').disabled = true;
+            document.getElementById('año').required = false;
+            document.getElementById('fecha').disabled = false;
+            document.getElementById('fecha').required = true;
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error al cargar el gasto');
-    });
+    } catch (error) {
+        console.error('Error al editar el gasto:', error);
+        alert('Error al cargar los datos del gasto');
+    }
 }
 
 async function borrarGasto(id) {

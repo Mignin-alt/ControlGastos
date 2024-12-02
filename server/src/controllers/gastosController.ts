@@ -162,3 +162,29 @@ export const obtenerGastosAgrupados = async (req: CustomRequest, res: Response) 
         res.status(500).json({ message: "Error al obtener gastos agrupados" });
     }
 };
+
+export const obtenerGasto = async (req: CustomRequest, res: Response) => {
+    try {
+        if (!req.usuario) {
+            return res.status(403).json({ message: "Usuario no autenticado" });
+        }
+
+        const { id } = req.params;
+        const result = await pool.query(
+            'SELECT *, TO_CHAR(fecha, \'YYYY-MM-DD\') as fecha FROM gasto WHERE id = $1 AND usuario_id = $2',
+            [id, req.usuario.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "Gasto no encontrado" });
+        }
+
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error al obtener gasto:', error);
+        res.status(500).json({ 
+            message: "Error al obtener gasto",
+            error: error instanceof Error ? error.message : 'Unknown error' 
+        });
+    }
+};

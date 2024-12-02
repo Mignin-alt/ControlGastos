@@ -92,7 +92,7 @@ app.post('/api/gastos', async (req, res) => {
             const resultados = [];
             
             for (let mes = 0; mes < 12; mes++) {
-                const fechaMes = new Date(parseInt(año), mes, 1);
+                const fechaMes = new Date(parseInt(año), mes, 20);
                 const result = await pool.query(
                     'INSERT INTO gasto (concepto, cantidad, categoria, es_recurrente, fecha) VALUES ($1, $2, $3, $4, $5) RETURNING *',
                     [concepto, cantidad, categoria, esRecurrente, fechaMes]

@@ -28,17 +28,17 @@
             <form id="gastoForm" class="form-container">
                 <div class="form-group">
                     <label for="concepto">Concepto:</label>
-                    <input type="text" id="concepto" required>
+                    <input type="text" id="concepto" name="concepto" required>
                 </div>
                 
                 <div class="form-group">
                     <label for="cantidad">Cantidad:</label>
-                    <input type="number" id="cantidad" step="0.01" required>
+                    <input type="number" id="cantidad" name="cantidad" step="0.01" required>
                 </div>
                 
                 <div class="form-group">
                     <label for="categoria">Categoría:</label>
-                    <select id="categoria" required>
+                    <select id="categoria" name="categoria" required>
                         <option value="Vivienda">Vivienda</option>
                         <option value="Alimentación">Alimentación</option>
                         <option value="Transporte">Transporte</option>
@@ -49,17 +49,17 @@
                 
                 <div class="form-group" id="fechaContainer">
                     <label for="fecha">Fecha:</label>
-                    <input type="date" id="fecha" required>
+                    <input type="date" id="fecha" name="fecha" required>
                 </div>
                 
                 <div class="form-group checkbox-group">
-                    <input type="checkbox" id="esRecurrente" onchange="toggleFechaInput()">
+                    <input type="checkbox" id="esRecurrente" name="esRecurrente" onchange="toggleFechaInput()">
                     <label for="esRecurrente">Es un gasto recurrente</label>
                 </div>
                 
                 <div class="form-group" id="añoContainer" style="display: none;">
                     <label for="año">Año:</label>
-                    <select id="año" required>
+                    <select id="año" name="año" required>
                         <!-- Se llenará dinámicamente -->
                     </select>
                 </div>
