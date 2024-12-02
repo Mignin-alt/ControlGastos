@@ -79,6 +79,16 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         mostrarLogin();
     }
+
+    actualizarNavbar(!!token);
+
+    const logoutLink = document.getElementById('logoutLink');
+    if (logoutLink) {
+        logoutLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+    }
 });
 
 async function login() {
@@ -98,6 +108,8 @@ async function login() {
             const data = await response.json();
             token = data.token;
             localStorage.setItem('token', token);
+            
+            actualizarNavbar(true);
             
             const authForms = document.getElementById('authForms');
             const mainContent = document.getElementById('mainContent');
@@ -123,28 +135,29 @@ async function login() {
 }
 
 async function cargarGastos() {
-    token = localStorage.getItem('token');
-    
-    if (!token) {
-        mostrarLogin();
-        return;
-    }
-
     try {
         const response = await fetch('/api/gastos', {
             headers: {
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
         });
-        
-        if (response.ok) {
-            const gastos = await response.json();
-            mostrarGastosDetallados(gastos);
-        } else {
-            alert('Error al cargar los gastos');
+
+        if (!response.ok) {
+            throw new Error('Error al cargar los gastos');
         }
+
+        const gastos = await response.json();
+        console.log('Gastos cargados:', gastos);
+
+        // Separar y mostrar los gastos
+        const gastosRecurrentes = gastos.filter(g => g.es_recurrente);
+        const gastosNoRecurrentes = gastos.filter(g => !g.es_recurrente);
+
+        mostrarGastosRecurrentes(gastosRecurrentes);
+        mostrarGastosNoRecurrentes(gastosNoRecurrentes);
     } catch (error) {
-        console.error('Error al cargar gastos:', error);
+        console.error('Error:', error);
+        alert('Error al cargar los gastos');
     }
 }
 
@@ -311,6 +324,11 @@ function editarGasto(id) {
         if (gasto.es_recurrente) {
             esRecurrenteInput.checked = true;
             esRecurrenteInput.disabled = true;
+            // Asegurarnos de que el campo año no sea required cuando editamos
+            const añoInput = document.getElementById('año');
+            if (añoInput) {
+                añoInput.required = false;
+            }
         } else {
             esRecurrenteInput.checked = false;
             esRecurrenteInput.disabled = false;
@@ -361,7 +379,11 @@ function toggleFechaInput() {
         const añoActual = new Date().getFullYear();
         añoInput.innerHTML = '';
         for (let i = añoActual - 2; i <= añoActual + 2; i++) {
-            añoInput.innerHTML += `<option value="${i}" ${i === añoActual ? 'selected' : ''}>${i}</option>`;
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = i;
+            if (i === añoActual) option.selected = true;
+            añoInput.appendChild(option);
         }
     } else {
         fechaContainer.style.display = 'block';
@@ -423,7 +445,7 @@ function mostrarGastosAgrupados(gastos) {
         gastosFiltrados = gastosFiltrados.filter(g => g.mes == mesFiltro);
     }
 
-    // Agrupar por año y mes
+    // Agrupar por año, mes y tipo de gasto
     const gastosAgrupados = {};
     gastosFiltrados.forEach(gasto => {
         const año = gasto.año;
@@ -434,20 +456,16 @@ function mostrarGastosAgrupados(gastos) {
             gastosAgrupados[key] = {
                 año,
                 mes,
-                semanas: {},
-                totalMes: 0,
-                tiene_recurrentes: false
+                totalRecurrentes: 0,
+                totalNoRecurrentes: 0
             };
         }
-        
-        const semana = gasto.semana;
-        if (!gastosAgrupados[key].semanas[semana]) {
-            gastosAgrupados[key].semanas[semana] = 0;
+
+        if (gasto.tiene_recurrentes) {
+            gastosAgrupados[key].totalRecurrentes += parseFloat(gasto.total);
+        } else {
+            gastosAgrupados[key].totalNoRecurrentes += parseFloat(gasto.total);
         }
-        
-        gastosAgrupados[key].semanas[semana] += parseFloat(gasto.total);
-        gastosAgrupados[key].totalMes += parseFloat(gasto.total);
-        gastosAgrupados[key].tiene_recurrentes = gastosAgrupados[key].tiene_recurrentes || gasto.tiene_recurrentes;
     });
 
     // Generar HTML
@@ -459,16 +477,8 @@ function mostrarGastosAgrupados(gastos) {
         html += `
             <div class="periodo-gasto">
                 <h3>${meses[periodo.mes - 1]} ${periodo.año}</h3>
-                <p class="total-mes">Total del mes: ${periodo.totalMes.toFixed(2)}€</p>
-                ${periodo.tiene_recurrentes ? '<p class="recurrente-badge">Incluye gastos recurrentes</p>' : ''}
-                <div class="semanas-container">
-                    ${Object.entries(periodo.semanas).map(([semana, total]) => `
-                        <div class="semana-gasto">
-                            <span>Semana ${semana}</span>
-                            <span>${total.toFixed(2)}€</span>
-                        </div>
-                    `).join('')}
-                </div>
+                <p class="total-mes">Total Recurrentes: ${periodo.totalRecurrentes.toFixed(2)}€</p>
+                <p class="total-mes">Total No Recurrentes: ${periodo.totalNoRecurrentes.toFixed(2)}€</p>
             </div>
         `;
     });
@@ -526,4 +536,207 @@ async function handleLogin(event) {
 async function handleRegistro(event) {
     event.preventDefault();
     await registrar();
+}
+
+function actualizarNavbar(estaAutenticado) {
+    const loginLink = document.getElementById('loginLink');
+    const registerLink = document.getElementById('registerLink');
+    const logoutLink = document.getElementById('logoutLink');
+
+    if (estaAutenticado) {
+        if (loginLink) loginLink.style.display = 'none';
+        if (registerLink) registerLink.style.display = 'none';
+        if (logoutLink) logoutLink.style.display = 'block';
+    } else {
+        if (loginLink) loginLink.style.display = 'block';
+        if (registerLink) registerLink.style.display = 'block';
+        if (logoutLink) logoutLink.style.display = 'none';
+    }
+}
+
+function logout() {
+    localStorage.removeItem('token');
+    actualizarNavbar(false);
+    window.location.href = '/inicio';
+}
+
+function calcularCantidadMasComun(gastos) {
+    // Convertir todas las cantidades a números y agruparlas
+    const cantidades = {};
+    gastos.forEach(gasto => {
+        const cantidad = parseFloat(gasto.cantidad) || 0;
+        cantidades[cantidad] = (cantidades[cantidad] || 0) + 1;
+    });
+
+    // Encontrar la cantidad que más se repite
+    let cantidadMasComun = 0;
+    let maxRepeticiones = 0;
+
+    Object.entries(cantidades).forEach(([cantidad, repeticiones]) => {
+        if (repeticiones > maxRepeticiones) {
+            maxRepeticiones = repeticiones;
+            cantidadMasComun = parseFloat(cantidad);
+        }
+    });
+
+    return cantidadMasComun.toFixed(2);
+}
+
+function mostrarGasto(gasto, container) {
+    let html = '';
+    const fecha = new Date(gasto.fecha).toLocaleDateString();
+    
+    if (gasto.es_recurrente) {
+        const cantidadMasComun = calcularCantidadMasComun(gasto.hijos || []);
+        html = `
+            <div class="gasto-item recurrente">
+                <div class="gasto-header" onclick="toggleGastoRecurrente('${gasto.id}')">
+                    <div class="gasto-info">
+                        <h3>${gasto.concepto}</h3>
+                        <p id="cantidad-${gasto.id}">${cantidadMasComun} - ${gasto.categoria}</p>
+                        <p>Fecha: ${fecha}</p>
+                    </div>
+                    <div class="gasto-actions">
+                        <button onclick="event.stopPropagation(); editarGasto('${gasto.id}')" class="btn-editar">Editar</button>
+                        <button onclick="event.stopPropagation(); borrarGasto('${gasto.id}')" class="btn-borrar">Borrar</button>
+                        <button onclick="event.stopPropagation(); borrarGrupoRecurrente('${gasto.concepto}', '${gasto.fecha}')" class="btn-borrar-grupo">
+                            Borrar Grupo Completo
+                        </button>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                </div>
+                <div id="detalles-${gasto.id}" style="display: none;" class="gasto-detalles">
+                    <!-- Aquí irán los detalles del gasto recurrente -->
+                </div>
+            </div>
+        `;
+    } else {
+        html = `
+            <div class="gasto-item">
+                <div class="gasto-header">
+                    <div class="gasto-info">
+                        <h3>${gasto.concepto}</h3>
+                        <p>${gasto.cantidad}€ - ${gasto.categoria}</p>
+                        <p>Fecha: ${fecha}</p>
+                    </div>
+                    <div class="gasto-actions">
+                        <button onclick="editarGasto('${gasto.id}')" class="btn-editar">Editar</button>
+                        <button onclick="borrarGasto('${gasto.id}')" class="btn-borrar">Borrar</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    container.insertAdjacentHTML('beforeend', html);
+}
+
+async function borrarGrupoRecurrente(concepto, fecha) {
+    if (!confirm(`¿Estás seguro de que deseas borrar todos los gastos recurrentes de "${concepto}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/gastos/recurrente', {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ concepto, fecha })
+        });
+
+        if (!response.ok) {
+            throw new Error('Error al borrar el grupo de gastos');
+        }
+
+        // Recargar los gastos después de borrar
+        await cargarGastos();
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error al borrar el grupo de gastos recurrentes');
+    }
+}
+
+function mostrarGastosRecurrentes(gastos) {
+    const container = document.getElementById('gastosRecurrentes');
+    container.innerHTML = '';
+    
+    console.log('Mostrando gastos recurrentes:', gastos); // Para debug
+    
+    // Agrupar gastos recurrentes por concepto y año
+    const gastosAgrupados = {};
+    gastos.filter(g => g.es_recurrente).forEach(gasto => {
+        const fecha = new Date(gasto.fecha);
+        const año = fecha.getFullYear();
+        const key = `${gasto.concepto}-${año}`;
+        
+        if (!gastosAgrupados[key]) {
+            gastosAgrupados[key] = {
+                concepto: gasto.concepto,
+                categoria: gasto.categoria,
+                año: año,
+                fecha: gasto.fecha,
+                gastos: []
+            };
+        }
+        gastosAgrupados[key].gastos.push(gasto);
+    });
+
+    Object.entries(gastosAgrupados).forEach(([key, grupo]) => {
+        const cantidadMasComun = calcularCantidadMasComun(grupo.gastos);
+        const html = `
+            <div class="gasto-recurrente-grupo">
+                <div class="gasto-recurrente-header" onclick="toggleGastoRecurrente('${key}')">
+                    <div class="gasto-info-principal">
+                        <h4>${grupo.concepto}</h4>
+                        <p>${cantidadMasComun}€/mes</p>
+                        <p>${grupo.categoria}</p>
+                        <p>${grupo.año}</p>
+                    </div>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="gasto-recurrente-detalles" id="detalles-${key}" style="display: none;">
+                    ${grupo.gastos.map(gasto => {
+                        const cantidad = parseFloat(gasto.cantidad) || 0; // Asegurarse de que sea un número
+                        return `
+                            <div class="gasto-mensual">
+                                <div class="gasto-mensual-info">
+                                    <span>${new Date(gasto.fecha).toLocaleString('es', { month: 'long' })}</span>
+                                    <span>${cantidad.toFixed(2)}€</span>
+                                </div>
+                                <div class="gasto-actions">
+                                    <button onclick="editarGasto('${gasto.id}')" class="btn-editar">Editar</button>
+                                    <button onclick="borrarGasto('${gasto.id}')" class="btn-borrar">Borrar</button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    });
+}
+
+function mostrarGastosNoRecurrentes(gastos) {
+    const container = document.getElementById('gastosNoRecurrentes');
+    container.innerHTML = '';
+
+    gastos.forEach(gasto => {
+        const cantidad = parseFloat(gasto.cantidad) || 0;
+        const html = `
+            <div class="gasto-item">
+                <p><strong>Concepto:</strong> ${gasto.concepto}</p>
+                <p><strong>Cantidad:</strong> ${cantidad.toFixed(2)}€</p>
+                <p><strong>Categoría:</strong> ${gasto.categoria}</p>
+                <p><strong>Fecha:</strong> ${new Date(gasto.fecha).toLocaleDateString()}</p>
+                <div class="gasto-actions">
+                    <button onclick="editarGasto('${gasto.id}')" class="btn-editar">Editar</button>
+                    <button onclick="borrarGasto('${gasto.id}')" class="btn-borrar">Borrar</button>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+    });
 }

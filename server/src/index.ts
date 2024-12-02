@@ -146,6 +146,43 @@ app.delete('/api/gastos/:id', async (req, res) => {
     }
 });
 
+app.delete('/api/gastos/recurrente', async (req, res) => {
+    try {
+        const { concepto, fecha } = req.body;
+        
+        // Verificar que los parámetros necesarios estén presentes
+        if (!concepto || !fecha) {
+            res.status(400).json({ error: 'Faltan parámetros requeridos' });
+            return;
+        }
+
+        const result = await pool.query(
+            'DELETE FROM gasto WHERE concepto = $1 AND es_recurrente = true AND EXTRACT(YEAR FROM fecha) = EXTRACT(YEAR FROM $2::date)',
+            [concepto, fecha]
+        );
+
+        console.log(`Gastos eliminados: ${result.rowCount}`);
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error al eliminar grupo de gastos recurrentes:', error);
+        res.status(500).json({ error: 'Error al eliminar grupo de gastos recurrentes' });
+    }
+});
+
+app.delete('/api/gastos/grupo-recurrente', async (req, res) => {
+    try {
+        const { concepto, fecha } = req.body;
+        await pool.query(
+            'DELETE FROM gasto WHERE concepto = $1 AND es_recurrente = true AND EXTRACT(YEAR FROM fecha) = EXTRACT(YEAR FROM $2::date)',
+            [concepto, fecha]
+        );
+        res.status(204).send();
+    } catch (error) {
+        console.error('Error al eliminar grupo de gastos recurrentes:', error);
+        res.status(500).json({ error: 'Error al eliminar grupo de gastos recurrentes' });
+    }
+});
+
 app.use(express.static(path.join(__dirname, '../../client')));
 
 const PORT = process.env.PORT || 3000;

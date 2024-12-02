@@ -148,12 +148,12 @@ export const obtenerGastosAgrupados = async (req: CustomRequest, res: Response) 
             SELECT 
                 EXTRACT(YEAR FROM fecha) AS año,
                 EXTRACT(MONTH FROM fecha) AS mes,
-                EXTRACT(WEEK FROM fecha) AS semana,
-                SUM(cantidad) AS total
+                SUM(cantidad) AS total,
+                bool_or(es_recurrente) AS tiene_recurrentes
             FROM gasto
             WHERE usuario_id = $1
-            GROUP BY año, mes, semana
-            ORDER BY año DESC, mes DESC, semana DESC
+            GROUP BY año, mes
+            ORDER BY año DESC, mes DESC
         `, [req.usuario.id]);
 
         res.json(result.rows);

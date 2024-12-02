@@ -52,11 +52,9 @@
                     <input type="date" id="fecha" required>
                 </div>
                 
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="esRecurrente" onchange="toggleFechaInput()">
-                        Gasto Recurrente
-                    </label>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="esRecurrente" onchange="toggleFechaInput()">
+                    <label for="esRecurrente">Es un gasto recurrente</label>
                 </div>
                 
                 <div class="form-group" id="añoContainer" style="display: none;">
