@@ -24,7 +24,7 @@ const register: RequestHandler = async (req, res) => {
         const passwordHash = await bcrypt.hash(password, salt);
 
         const result = await pool.query(
-            'INSERT INTO usuario (nombre, email, password_hash) VALUES ($1, $2, $3) RETURNING id, email, nombre',
+            'INSERT INTO usuario (nombre, email, password) VALUES ($1, $2, $3) RETURNING id, email, nombre',
             [nombre, email, passwordHash]
         );
 
@@ -40,9 +40,15 @@ const register: RequestHandler = async (req, res) => {
 
 router.post('/register', register);
 
-const login: RequestHandler = async (req, res) => {
+const login = async (req: Request, res: Response): Promise<void> => {
     try {
         const { email, password } = req.body;
+
+        if (!process.env.JWT_SECRET) {
+            console.error('JWT_SECRET no está definido en las variables de entorno');
+            res.status(500).json({ message: 'Error de configuración del servidor' });
+            return;
+        }
 
         const result = await pool.query(
             'SELECT * FROM usuario WHERE email = $1',
@@ -55,19 +61,23 @@ const login: RequestHandler = async (req, res) => {
         }
 
         const usuario = result.rows[0];
-        const validPassword = await bcrypt.compare(password, usuario.password_hash);
+        const validPassword = await bcrypt.compare(password, usuario.password);
         
         if (!validPassword) {
             res.status(401).json({ message: 'Credenciales inválidas' });
             return;
         }
 
-        const secret = process.env.JWT_SECRET ? process.env.JWT_SECRET : (() => { throw new Error('JWT_SECRET no está definido'); })();
-
         const token = jwt.sign(
-            { id: usuario.id },
-            secret,
-            { expiresIn: '24h' }
+            { 
+                id: usuario.id,
+                email: usuario.email 
+            },
+            process.env.JWT_SECRET,
+            { 
+                expiresIn: '24h',
+                algorithm: 'HS256'
+            }
         );
 
         res.json({
@@ -78,9 +88,15 @@ const login: RequestHandler = async (req, res) => {
                 nombre: usuario.nombre
             }
         });
-    } catch (error) {
+
+    } catch (error: unknown) {
         console.error('Error en login:', error);
-        res.status(500).json({ message: 'Error en el servidor' });
+        res.status(500).json({ 
+            message: 'Error en el servidor',
+            error: process.env.NODE_ENV === 'development' ? 
+                error instanceof Error ? error.message : 'Error desconocido' 
+                : undefined
+        });
     }
 };
 

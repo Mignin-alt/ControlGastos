@@ -2,12 +2,80 @@ let token = localStorage.getItem('token');
 let gastoForm;
 
 document.addEventListener('DOMContentLoaded', () => {
-    gastoForm = document.getElementById('gastoForm');
+    const loginForm = document.getElementById('loginForm');
+    const registroForm = document.getElementById('registroForm');
+    const gastosSection = document.getElementById('gastosSection');
+    const gastoForm = document.getElementById('gastoForm');
     
+    if (loginForm) {
+        mostrarLogin();
+        loginForm.addEventListener('submit', handleLogin);
+    }
+    
+    if (registroForm) {
+        mostrarRegistro();
+        registroForm.addEventListener('submit', handleRegistro);
+    }
+    
+    if (gastosSection) {
+        mostrarGastos();
+    }
+
+    if (gastoForm) {
+        gastoForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            
+            const esRecurrente = document.getElementById('esRecurrente').checked;
+            const formData = {
+                concepto: document.getElementById('concepto').value,
+                cantidad: parseFloat(document.getElementById('cantidad').value),
+                categoria: document.getElementById('categoria').value,
+                esRecurrente: esRecurrente,
+                fecha: document.getElementById('fecha').value,
+                año: esRecurrente && !form.dataset.modo ? document.getElementById('año').value : null
+            };
+
+            const modo = form.dataset.modo;
+            const gastoId = form.dataset.gastoId;
+
+            try {
+                const url = modo === 'editar' ? `/api/gastos/${gastoId}` : '/api/gastos';
+                const method = modo === 'editar' ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    form.reset();
+                    form.dataset.modo = 'crear';
+                    delete form.dataset.gastoId;
+                    cargarGastos();
+                } else {
+                    alert('Error al guardar el gasto');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al guardar el gasto');
+            }
+        });
+    }
+
     if (token) {
-        document.getElementById('authForms').style.display = 'none';
-        document.getElementById('mainContent').style.display = 'block';
-        cargarGastos();
+        const authForms = document.getElementById('authForms');
+        const mainContent = document.getElementById('mainContent');
+        
+        if (authForms && mainContent) {
+            authForms.style.display = 'none';
+            mainContent.style.display = 'block';
+            mostrarVistaDetallada();
+        }
     } else {
         mostrarLogin();
     }
@@ -31,15 +99,26 @@ async function login() {
             token = data.token;
             localStorage.setItem('token', token);
             
-            document.getElementById('authForms').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'block';
+            const authForms = document.getElementById('authForms');
+            const mainContent = document.getElementById('mainContent');
             
-            cargarGastos();
+            if (authForms) {
+                authForms.style.display = 'none';
+            }
+            
+            if (mainContent) {
+                mainContent.style.display = 'block';
+                mostrarVistaDetallada();
+            } else {
+                window.location.href = '/gastos';
+            }
         } else {
-            alert('Error de autenticación');
+            const errorData = await response.json();
+            alert(errorData.message || 'Error de autenticación');
         }
     } catch (error) {
         console.error('Error:', error);
+        alert('Error al intentar iniciar sesión');
     }
 }
 
@@ -60,10 +139,9 @@ async function cargarGastos() {
         
         if (response.ok) {
             const gastos = await response.json();
-            mostrarGastos(gastos);
-        } else if (response.status === 401) {
-            localStorage.removeItem('token');
-            mostrarLogin();
+            mostrarGastosDetallados(gastos);
+        } else {
+            alert('Error al cargar los gastos');
         }
     } catch (error) {
         console.error('Error al cargar gastos:', error);
@@ -71,35 +149,107 @@ async function cargarGastos() {
 }
 
 function mostrarLogin() {
-    document.getElementById('loginForm').style.display = 'block';
-    document.getElementById('mainContent').style.display = 'none';
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.style.display = 'block';
+    }
 }
 
-function mostrarGastos(gastos) {
-    const resumenGastos = document.getElementById('resumenGastos');
-    resumenGastos.innerHTML = '<h2>Historial de Gastos</h2>';
+function mostrarRegistro() {
+    const registroForm = document.getElementById('registroForm');
+    if (registroForm) {
+        registroForm.style.display = 'block';
+    }
+}
+
+function mostrarGastos() {
+    const gastosSection = document.getElementById('gastosSection');
+    if (gastosSection) {
+        gastosSection.style.display = 'block';
+    }
+}
+
+function mostrarGastosDetallados(gastos) {
+    const gastosRecurrentes = document.getElementById('gastosRecurrentes');
+    const gastosNoRecurrentes = document.getElementById('gastosNoRecurrentes');
     
-    if (Array.isArray(gastos) && gastos.length > 0) {
-        gastos.forEach(gasto => {
-            const fecha = new Date(gasto.fecha).toLocaleDateString();
-            const cantidad = parseFloat(gasto.cantidad);
-            resumenGastos.innerHTML += `
-                <div class="gasto-item">
-                    <p><strong>Concepto:</strong> ${gasto.concepto}</p>
-                    <p><strong>Cantidad:</strong> ${cantidad.toFixed(2)}€</p>
-                    <p><strong>Categoría:</strong> ${gasto.categoria}</p>
-                    <p><strong>Fecha:</strong> ${fecha}</p>
-                    ${gasto.es_recurrente ? '<p><em>Gasto Recurrente</em></p>' : ''}
-                    <div class="gasto-actions">
-                        <button onclick="editarGasto('${gasto.id}')" class="btn-editar">Editar</button>
-                        <button onclick="borrarGasto('${gasto.id}')" class="btn-borrar">Borrar</button>
+    gastosRecurrentes.innerHTML = '';
+    gastosNoRecurrentes.innerHTML = '';
+
+    // Agrupar gastos recurrentes por concepto y año
+    const gastosRecurrentesAgrupados = {};
+    gastos.filter(g => g.es_recurrente).forEach(gasto => {
+        const año = new Date(gasto.fecha).getFullYear();
+        const key = `${gasto.concepto}-${año}`;
+        if (!gastosRecurrentesAgrupados[key]) {
+            gastosRecurrentesAgrupados[key] = [];
+        }
+        gastosRecurrentesAgrupados[key].push(gasto);
+    });
+
+    // Mostrar gastos recurrentes agrupados
+    Object.entries(gastosRecurrentesAgrupados).forEach(([key, grupo]) => {
+        const primerGasto = grupo[0];
+        const gastoHTML = `
+            <div class="gasto-recurrente-grupo">
+                <div class="gasto-recurrente-header" onclick="toggleGastoRecurrente('${key}')">
+                    <div class="gasto-info-principal">
+                        <h4>${primerGasto.concepto}</h4>
+                        <p>${parseFloat(primerGasto.cantidad).toFixed(2)}€/mes</p>
+                        <p>${primerGasto.categoria}</p>
+                        <p>${new Date(primerGasto.fecha).getFullYear()}</p>
                     </div>
-                    <hr>
+                    <span class="toggle-icon">▼</span>
                 </div>
-            `;
-        });
+                <div class="gasto-recurrente-detalles" id="detalles-${key}" style="display: none;">
+                    ${grupo.map(gasto => `
+                        <div class="gasto-mensual">
+                            <div class="gasto-mensual-info">
+                                <span>${new Date(gasto.fecha).toLocaleDateString('es-ES', { month: 'long' })}</span>
+                                <span>${parseFloat(gasto.cantidad).toFixed(2)}€</span>
+                            </div>
+                            <div class="gasto-actions">
+                                <button onclick="editarGasto('${gasto.id}')" class="btn-editar">Editar</button>
+                                <button onclick="borrarGasto('${gasto.id}')" class="btn-borrar">Borrar</button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        gastosRecurrentes.innerHTML += gastoHTML;
+    });
+
+    // Mostrar gastos no recurrentes
+    gastos.filter(g => !g.es_recurrente).forEach(gasto => {
+        const gastoHTML = `
+            <div class="gasto-item">
+                <p><strong>Concepto:</strong> ${gasto.concepto}</p>
+                <p><strong>Cantidad:</strong> ${parseFloat(gasto.cantidad).toFixed(2)}€</p>
+                <p><strong>Categoría:</strong> ${gasto.categoria}</p>
+                <p><strong>Fecha:</strong> ${new Date(gasto.fecha).toLocaleDateString()}</p>
+                <div class="gasto-actions">
+                    <button onclick="editarGasto('${gasto.id}')" class="btn-editar">Editar</button>
+                    <button onclick="borrarGasto('${gasto.id}')" class="btn-borrar">Borrar</button>
+                </div>
+            </div>
+        `;
+        gastosNoRecurrentes.innerHTML += gastoHTML;
+    });
+}
+
+// Función para mostrar/ocultar detalles de gasto recurrente
+function toggleGastoRecurrente(key) {
+    const detalles = document.getElementById(`detalles-${key}`);
+    const header = detalles.previousElementSibling;
+    const icon = header.querySelector('.toggle-icon');
+    
+    if (detalles.style.display === 'none') {
+        detalles.style.display = 'block';
+        icon.textContent = '▲';
     } else {
-        resumenGastos.innerHTML += '<p>No hay gastos registrados</p>';
+        detalles.style.display = 'none';
+        icon.textContent = '▼';
     }
 }
 
@@ -130,29 +280,46 @@ async function registrar() {
     }
 }
 
-function mostrarRegistro() {
-    document.getElementById('loginForm').style.display = 'none';
-    document.getElementById('registerForm').style.display = 'block';
-}
-
-function mostrarLogin() {
-    document.getElementById('registerForm').style.display = 'none';
-    document.getElementById('loginForm').style.display = 'block';
-}
-
-async function editarGasto(id) {
-    const gasto = await obtenerGastoPorId(id);
-    if (!gasto) return;
-
-    document.getElementById('concepto').value = gasto.concepto;
-    document.getElementById('cantidad').value = gasto.cantidad;
-    document.getElementById('categoria').value = gasto.categoria;
-    document.getElementById('fecha').value = gasto.fecha.split('T')[0];
-    document.getElementById('esRecurrente').checked = gasto.es_recurrente;
-
+function editarGasto(id) {
     const form = document.getElementById('gastoForm');
     form.dataset.modo = 'editar';
     form.dataset.gastoId = id;
+
+    fetch(`/api/gastos/${id}`, {
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+    })
+    .then(response => response.json())
+    .then(gasto => {
+        document.getElementById('concepto').value = gasto.concepto;
+        document.getElementById('cantidad').value = gasto.cantidad;
+        document.getElementById('categoria').value = gasto.categoria;
+        
+        const fechaInput = document.getElementById('fecha');
+        const esRecurrenteInput = document.getElementById('esRecurrente');
+        const añoContainer = document.getElementById('añoContainer');
+        const fechaContainer = document.getElementById('fechaContainer');
+        
+        // Siempre mostramos la fecha al editar
+        fechaContainer.style.display = 'block';
+        añoContainer.style.display = 'none';
+        fechaInput.value = new Date(gasto.fecha).toISOString().split('T')[0];
+        fechaInput.required = true;
+        
+        // Si es recurrente, deshabilitamos el checkbox
+        if (gasto.es_recurrente) {
+            esRecurrenteInput.checked = true;
+            esRecurrenteInput.disabled = true;
+        } else {
+            esRecurrenteInput.checked = false;
+            esRecurrenteInput.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al cargar el gasto');
+    });
 }
 
 async function borrarGasto(id) {
@@ -177,47 +344,32 @@ async function borrarGasto(id) {
     }
 }
 
-document.getElementById('gastoForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = {
-        concepto: document.getElementById('concepto').value,
-        cantidad: parseFloat(document.getElementById('cantidad').value),
-        categoria: document.getElementById('categoria').value,
-        fecha: document.getElementById('fecha').value,
-        esRecurrente: document.getElementById('esRecurrente').checked
-    };
+function toggleFechaInput() {
+    const esRecurrente = document.getElementById('esRecurrente').checked;
+    const fechaContainer = document.getElementById('fechaContainer');
+    const añoContainer = document.getElementById('añoContainer');
+    const fechaInput = document.getElementById('fecha');
+    const añoInput = document.getElementById('año');
 
-    const form = e.target;
-    const modo = form.dataset.modo;
-    const gastoId = form.dataset.gastoId;
-
-    try {
-        const url = modo === 'editar' ? `/api/gastos/${gastoId}` : '/api/gastos';
-        const method = modo === 'editar' ? 'PUT' : 'POST';
-
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify(formData)
-        });
-
-        if (response.ok) {
-            form.reset();
-            form.dataset.modo = 'crear';
-            delete form.dataset.gastoId;
-            cargarGastos();
-        } else {
-            alert('Error al guardar el gasto');
+    if (esRecurrente) {
+        fechaContainer.style.display = 'none';
+        añoContainer.style.display = 'block';
+        fechaInput.required = false;
+        añoInput.required = true;
+        
+        // Llenar el selector de años
+        const añoActual = new Date().getFullYear();
+        añoInput.innerHTML = '';
+        for (let i = añoActual - 2; i <= añoActual + 2; i++) {
+            añoInput.innerHTML += `<option value="${i}" ${i === añoActual ? 'selected' : ''}>${i}</option>`;
         }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error al guardar el gasto');
+    } else {
+        fechaContainer.style.display = 'block';
+        añoContainer.style.display = 'none';
+        fechaInput.required = true;
+        añoInput.required = false;
     }
-});
+}
 
 async function obtenerGastoPorId(id) {
     try {
@@ -233,4 +385,145 @@ async function obtenerGastoPorId(id) {
         console.error('Error:', error);
     }
     return null;
-} 
+}
+
+async function cargarGastosAgrupados() {
+    try {
+        const response = await fetch('/api/gastos/agrupados', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+
+        if (response.ok) {
+            const gastosAgrupados = await response.json();
+            window.todosLosGastos = gastosAgrupados;
+            actualizarFiltroAños(gastosAgrupados);
+            mostrarGastosAgrupados(gastosAgrupados);
+        } else if (response.status === 401) {
+            localStorage.removeItem('token');
+            mostrarLogin();
+        }
+    } catch (error) {
+        console.error('Error al cargar gastos agrupados:', error);
+    }
+}
+
+function mostrarGastosAgrupados(gastos) {
+    const container = document.getElementById('resumenGastosAgrupados');
+    const añoFiltro = document.getElementById('filtroAño').value;
+    const mesFiltro = document.getElementById('filtroMes').value;
+
+    // Filtrar gastos según los filtros seleccionados
+    let gastosFiltrados = gastos;
+    if (añoFiltro) {
+        gastosFiltrados = gastosFiltrados.filter(g => g.año == añoFiltro);
+    }
+    if (mesFiltro) {
+        gastosFiltrados = gastosFiltrados.filter(g => g.mes == mesFiltro);
+    }
+
+    // Agrupar por año y mes
+    const gastosAgrupados = {};
+    gastosFiltrados.forEach(gasto => {
+        const año = gasto.año;
+        const mes = gasto.mes;
+        const key = `${año}-${mes}`;
+        
+        if (!gastosAgrupados[key]) {
+            gastosAgrupados[key] = {
+                año,
+                mes,
+                semanas: {},
+                totalMes: 0,
+                tiene_recurrentes: false
+            };
+        }
+        
+        const semana = gasto.semana;
+        if (!gastosAgrupados[key].semanas[semana]) {
+            gastosAgrupados[key].semanas[semana] = 0;
+        }
+        
+        gastosAgrupados[key].semanas[semana] += parseFloat(gasto.total);
+        gastosAgrupados[key].totalMes += parseFloat(gasto.total);
+        gastosAgrupados[key].tiene_recurrentes = gastosAgrupados[key].tiene_recurrentes || gasto.tiene_recurrentes;
+    });
+
+    // Generar HTML
+    let html = '';
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+    Object.values(gastosAgrupados).forEach(periodo => {
+        html += `
+            <div class="periodo-gasto">
+                <h3>${meses[periodo.mes - 1]} ${periodo.año}</h3>
+                <p class="total-mes">Total del mes: ${periodo.totalMes.toFixed(2)}€</p>
+                ${periodo.tiene_recurrentes ? '<p class="recurrente-badge">Incluye gastos recurrentes</p>' : ''}
+                <div class="semanas-container">
+                    ${Object.entries(periodo.semanas).map(([semana, total]) => `
+                        <div class="semana-gasto">
+                            <span>Semana ${semana}</span>
+                            <span>${total.toFixed(2)}€</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html || '<p>No hay gastos para el período seleccionado</p>';
+}
+
+function actualizarFiltroAños(gastos) {
+    const años = [...new Set(gastos.map(g => g.año))].sort((a, b) => b - a);
+    const selectAño = document.getElementById('filtroAño');
+    const añoActual = selectAño.value || '';
+    
+    selectAño.innerHTML = '<option value="">Todos los años</option>';
+    años.forEach(año => {
+        const selected = año.toString() === añoActual ? 'selected' : '';
+        selectAño.innerHTML += `<option value="${año}" ${selected}>${año}</option>`;
+    });
+}
+
+function filtrarGastosAgrupados() {
+    const añoFiltro = document.getElementById('filtroAño').value;
+    const mesFiltro = document.getElementById('filtroMes').value;
+    
+    let gastosFiltrados = window.todosLosGastos;
+
+    if (añoFiltro) {
+        gastosFiltrados = gastosFiltrados.filter(g => g.año.toString() === añoFiltro);
+    }
+    if (mesFiltro) {
+        gastosFiltrados = gastosFiltrados.filter(g => g.mes.toString() === mesFiltro);
+    }
+
+    mostrarGastosAgrupados(gastosFiltrados);
+}
+
+function mostrarVistaDetallada() {
+    const vistaDetallada = document.getElementById('vistaDetallada');
+    if (vistaDetallada) {
+        vistaDetallada.style.display = 'block';
+        cargarGastos();
+    }
+}
+
+function mostrarVistaAgrupada() {
+    document.getElementById('vistaDetallada').style.display = 'none';
+    document.getElementById('vistaAgrupada').style.display = 'block';
+    cargarGastosAgrupados();
+}
+
+async function handleLogin(event) {
+    event.preventDefault();
+    await login();
+}
+
+async function handleRegistro(event) {
+    event.preventDefault();
+    await registrar();
+}

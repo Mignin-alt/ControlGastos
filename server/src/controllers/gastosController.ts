@@ -137,3 +137,28 @@ export const obtenerEstadisticas = async (req: CustomRequest, res: Response) => 
         });
     }
 };
+
+export const obtenerGastosAgrupados = async (req: CustomRequest, res: Response) => {
+    try {
+        if (!req.usuario) {
+            return res.status(403).json({ message: "Usuario no autenticado" });
+        }
+
+        const result = await pool.query(`
+            SELECT 
+                EXTRACT(YEAR FROM fecha) AS año,
+                EXTRACT(MONTH FROM fecha) AS mes,
+                EXTRACT(WEEK FROM fecha) AS semana,
+                SUM(cantidad) AS total
+            FROM gasto
+            WHERE usuario_id = $1
+            GROUP BY año, mes, semana
+            ORDER BY año DESC, mes DESC, semana DESC
+        `, [req.usuario.id]);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error al obtener gastos agrupados:', error);
+        res.status(500).json({ message: "Error al obtener gastos agrupados" });
+    }
+};

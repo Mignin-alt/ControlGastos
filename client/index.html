@@ -32,49 +32,86 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="cantidad">Cantidad (€):</label>
+                    <label for="cantidad">Cantidad:</label>
                     <input type="number" id="cantidad" step="0.01" required>
                 </div>
                 
                 <div class="form-group">
                     <label for="categoria">Categoría:</label>
                     <select id="categoria" required>
+                        <option value="Vivienda">Vivienda</option>
                         <option value="Alimentación">Alimentación</option>
                         <option value="Transporte">Transporte</option>
                         <option value="Ocio">Ocio</option>
-                        <option value="Vivienda">Vivienda</option>
-                        <option value="Servicios">Servicios</option>
                         <option value="Otros">Otros</option>
                     </select>
                 </div>
                 
-                <div class="form-group">
+                <div class="form-group" id="fechaContainer">
                     <label for="fecha">Fecha:</label>
                     <input type="date" id="fecha" required>
                 </div>
                 
-                <div class="form-group checkbox-group">
+                <div class="form-group">
                     <label>
-                        <input type="checkbox" id="esRecurrente">
+                        <input type="checkbox" id="esRecurrente" onchange="toggleFechaInput()">
                         Gasto Recurrente
                     </label>
                 </div>
                 
-                <button type="submit">Registrar Gasto</button>
+                <div class="form-group" id="añoContainer" style="display: none;">
+                    <label for="año">Año:</label>
+                    <select id="año" required>
+                        <!-- Se llenará dinámicamente -->
+                    </select>
+                </div>
+                
+                <button type="submit">Guardar Gasto</button>
+                <button type="button" id="cancelarEdicion" style="display: none;">Cancelar</button>
             </form>
 
-            <div id="resumenGastos" class="gastos-container">
-                <div class="gasto-item" data-id="${gasto.id}">
-                    <p><strong>Concepto:</strong> ${gasto.concepto}</p>
-                    <p><strong>Cantidad:</strong> €${gasto.cantidad}</p>
-                    <p><strong>Categoría:</strong> ${gasto.categoria}</p>
-                    <p><strong>Fecha:</strong> ${new Date(gasto.fecha).toLocaleDateString()}</p>
-                    <p><strong>Recurrente:</strong> ${gasto.es_recurrente ? 'Sí' : 'No'}</p>
-                    <div class="gasto-actions">
-                        <button onclick="editarGasto('${gasto.id}')" class="btn-editar">Editar</button>
-                        <button onclick="borrarGasto('${gasto.id}')" class="btn-borrar">Borrar</button>
+            <div class="view-controls">
+                <button onclick="mostrarVistaDetallada()" class="btn-vista">Vista Detallada</button>
+                <button onclick="mostrarVistaAgrupada()" class="btn-vista">Vista Agrupada</button>
+            </div>
+            
+            <div id="vistaDetallada" class="gastos-container">
+                <h2>Historial de Gastos</h2>
+                <div class="gastos-grid">
+                    <div class="gastos-columna">
+                        <h3>Gastos Recurrentes</h3>
+                        <div id="gastosRecurrentes"></div>
+                    </div>
+                    <div class="gastos-columna">
+                        <h3>Gastos No Recurrentes</h3>
+                        <div id="gastosNoRecurrentes"></div>
                     </div>
                 </div>
+            </div>
+
+            <div id="vistaAgrupada" class="gastos-container" style="display: none;">
+                <h2>Gastos Agrupados</h2>
+                <div class="filtros-agrupados">
+                    <select id="filtroAño" onchange="filtrarGastosAgrupados()">
+                        <option value="">Todos los años</option>
+                    </select>
+                    <select id="filtroMes" onchange="filtrarGastosAgrupados()">
+                        <option value="">Todos los meses</option>
+                        <option value="1">Enero</option>
+                        <option value="2">Febrero</option>
+                        <option value="3">Marzo</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Mayo</option>
+                        <option value="6">Junio</option>
+                        <option value="7">Julio</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Septiembre</option>
+                        <option value="10">Octubre</option>
+                        <option value="11">Noviembre</option>
+                        <option value="12">Diciembre</option>
+                    </select>
+                </div>
+                <div id="resumenGastosAgrupados"></div>
             </div>
         </div>
     </div>

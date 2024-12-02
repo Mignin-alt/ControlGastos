@@ -1,11 +1,17 @@
-import express from 'express';
+import dotenv from 'dotenv';
+import express, { Request, Response, RequestHandler } from 'express';
 import path from 'path';
 import { pool } from './config/database';
-import { Request, Response } from 'express';
+import authRoutes from './routes/authRoute';
+import cors from 'cors';
 
 const app = express();
+dotenv.config();
 
 app.use(express.json());
+app.use(cors());
+
+app.use('/api/auth', authRoutes);
 
 app.use((req, res, next) => {
     if (req.url.endsWith('.js')) {
@@ -44,6 +50,25 @@ app.get('/api/gastos', async (req, res) => {
     }
 });
 
+app.get('/api/gastos/agrupados', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                EXTRACT(YEAR FROM fecha) AS año,
+                EXTRACT(MONTH FROM fecha) AS mes,
+                SUM(cantidad) AS total,
+                bool_or(es_recurrente) AS tiene_recurrentes
+            FROM gasto
+            GROUP BY año, mes
+            ORDER BY año DESC, mes DESC
+        `);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error al obtener gastos agrupados:', error);
+        res.status(500).json({ error: 'Error al obtener gastos agrupados' });
+    }
+}) as RequestHandler;
+
 app.get('/api/gastos/:id', (async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
@@ -58,36 +83,57 @@ app.get('/api/gastos/:id', (async (req: Request, res: Response) => {
         console.error('Error al obtener gasto:', error);
         res.status(500).json({ error: 'Error al obtener gasto' });
     }
-}) as any);
+}) as RequestHandler);
 
 app.post('/api/gastos', async (req, res) => {
-    const { concepto, cantidad, categoria, esRecurrente } = req.body;
+    const { concepto, cantidad, categoria, esRecurrente, fecha, año } = req.body;
     try {
-        const result = await pool.query(
-            'INSERT INTO gasto (concepto, cantidad, categoria, es_recurrente) VALUES ($1, $2, $3, $4) RETURNING *',
-            [concepto, cantidad, categoria, esRecurrente]
-        );
-        res.json(result.rows[0]);
+        if (esRecurrente) {
+            const resultados = [];
+            
+            for (let mes = 0; mes < 12; mes++) {
+                const fechaMes = new Date(parseInt(año), mes, 1);
+                const result = await pool.query(
+                    'INSERT INTO gasto (concepto, cantidad, categoria, es_recurrente, fecha) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+                    [concepto, cantidad, categoria, esRecurrente, fechaMes]
+                );
+                resultados.push(result.rows[0]);
+            }
+            res.json(resultados[0]);
+        } else {
+            const result = await pool.query(
+                'INSERT INTO gasto (concepto, cantidad, categoria, es_recurrente, fecha) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+                [concepto, cantidad, categoria, esRecurrente, fecha]
+            );
+            res.json(result.rows[0]);
+        }
     } catch (error) {
         console.error('Error al crear gasto:', error);
         res.status(500).json({ error: 'Error al crear gasto' });
     }
-});
+}) as RequestHandler;
 
 app.put('/api/gastos/:id', async (req, res) => {
     const { id } = req.params;
-    const { concepto, cantidad, categoria, esRecurrente, fecha } = req.body;
+    const { concepto, cantidad, categoria, fecha } = req.body;
+    
     try {
         const result = await pool.query(
-            'UPDATE gasto SET concepto = $1, cantidad = $2, categoria = $3, es_recurrente = $4, fecha = $5 WHERE id = $6 RETURNING *',
-            [concepto, cantidad, categoria, esRecurrente, fecha, id]
+            'UPDATE gasto SET concepto = $1, cantidad = $2, categoria = $3, fecha = $4 WHERE id = $5 RETURNING *',
+            [concepto, cantidad, categoria, fecha, id]
         );
+        
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'Gasto no encontrado' });
+            return;
+        }
+        
         res.json(result.rows[0]);
     } catch (error) {
         console.error('Error al actualizar gasto:', error);
         res.status(500).json({ error: 'Error al actualizar gasto' });
     }
-});
+}) as RequestHandler;
 
 app.delete('/api/gastos/:id', async (req, res) => {
     const { id } = req.params;

@@ -258,4 +258,149 @@ button:hover {
 
 .btn-borrar:hover {
     background-color: #c0392b;
-} 
+}
+
+.view-controls {
+    margin: 1rem 0 2rem 0;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.btn-vista {
+    padding: 0.5rem 1rem;
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    width: auto;
+    font-size: 0.9rem;
+}
+
+.btn-vista:hover {
+    background-color: #2980b9;
+}
+
+.filtros-agrupados {
+    margin-bottom: 2rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.filtros-agrupados select {
+    padding: 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.periodo-gasto {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.total-mes {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin: 0.5rem 0;
+}
+
+.recurrente-badge {
+    background-color: #e74c3c;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    display: inline-block;
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+}
+
+.gastos-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 1rem;
+}
+
+.gastos-columna {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.gastos-columna h3 {
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.gasto-recurrente-grupo {
+    background-color: white;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.gasto-recurrente-header {
+    padding: 1rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.gasto-recurrente-header:hover {
+    background-color: var(--background-color);
+}
+
+.gasto-info-principal {
+    flex: 1;
+}
+
+.gasto-info-principal h4 {
+    margin: 0;
+    color: var(--primary-color);
+}
+
+.toggle-icon {
+    margin-left: 1rem;
+    color: var(--secondary-color);
+}
+
+.gasto-recurrente-detalles {
+    padding: 1rem;
+}
+
+.gasto-mensual {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.gasto-mensual:last-child {
+    border-bottom: none;
+}
+
+.gasto-mensual-info {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.gasto-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-editar, .btn-borrar {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+}
